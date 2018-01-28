@@ -8,34 +8,110 @@ function Db() {
     this.peers = {};
     this.peerCount = 0;
 
+    // Directory flag 0x4000
+    var S_IFDIR = 16384;
+
     self.node.addEndpoint('mist.name', { type: 'string', read: (args, peer, cb) => { cb(null, 'FileDb'); } });
     self.node.addEndpoint('mist.class', { type: 'string', read: (args, peer, cb) => { cb(null, cls); } });
 
-    var files = {
-        test: {
-            data: new Buffer('hello world\n'),
-            getattr: {
-                mtime: new Date(),
-                atime: new Date(),
-                ctime: new Date(),
-                nlink: 1,
-                size: 12,
-                mode: 33188,
-                uid: process.getuid ? process.getuid() : 0,
-                gid: process.getgid ? process.getgid() : 0
+    var db = {
+        data: Buffer.alloc(0),
+        getattr: {
+            mtime: new Date(),
+            atime: new Date(),
+            ctime: new Date(),
+            nlink: 1,
+            size: 100,
+            mode: 16877,
+            uid: process.getuid ? process.getuid() : 0,
+            gid: process.getgid ? process.getgid() : 0
+        },
+        files: {
+            test: {
+                data: new Buffer('hello world\n'),
+                getattr: {
+                    mtime: new Date(),
+                    atime: new Date(),
+                    ctime: new Date(),
+                    nlink: 1,
+                    size: 12,
+                    mode: 33188,
+                    uid: process.getuid ? process.getuid() : 0,
+                    gid: process.getgid ? process.getgid() : 0
+                }
             }
         }
     };
 
+    function getNodeParent(path) {
+        if (path === '/') { return null; }
+        path = path.slice(1);
+        var dir = path.split('/');
+        var file = dir.pop();
+        
+        var cursor = db;
+        
+        while (dir.length > 0) {
+            var next = dir.shift();
+            if(!cursor.files[next]) {
+                return null;
+            }
+            
+            cursor = cursor.files[next];
+        }
+        
+        return cursor;
+    }
+
+    function getNode(path) {
+        if (path === '/') { return db; }
+        path = path.slice(1);
+        var dir = path.split('/');
+        var file = dir.pop();
+        
+        var cursor = db;
+        
+        while (dir.length > 0) {
+            var next = dir.shift();
+            if(!cursor.files[next]) {
+                return null;
+            }
+            
+            cursor = cursor.files[next];
+        }
+        
+        if (!cursor.files[file]) { return null; }
+        
+        return cursor.files[file];
+    }
+
+    self.node.addEndpoint('getNode', {
+        invoke: (args, peer, cb) => {
+            cb(null, getNode(args[0]));
+        }
+    });
+
+    self.node.addEndpoint('getNodeParent', {
+        invoke: (args, peer, cb) => {
+            cb(null, getNodeParent(args[0]));
+        }
+    });
+    
     self.node.addEndpoint('readdir', {
         invoke: (args, peer, cb) => {
             console.log('readdir:', args);
             var path = args[0];
             
-            if (path === '/') {
-                var l = [];
-                for(var i in files) { l.push(i); }
-                return cb(null, l);
+            var node = getNode(path);
+            
+            console.log('readdir node:', node);
+            
+            if (node) {
+                if (node.getattr.mode & 16384) {
+                    var l = [];
+                    for(var i in node.files) { l.push(i); }
+                    return cb(null, l);
+                }
             }
             
             cb(null, []);
@@ -48,26 +124,16 @@ function Db() {
             
             var path = args[0];
             
-            if (path === '/') {
-                return cb(null, {
-                    mtime: new Date(),
-                    atime: new Date(),
-                    ctime: new Date(),
-                    nlink: 1,
-                    size: 100,
-                    mode: 16877,
-                    uid: process.getuid ? process.getuid() : 0,
-                    gid: process.getgid ? process.getgid() : 0
-                });
-            }
-
-            if (files[path.substr(1)]) {
-                console.log('here... A');
-                return cb(null, files[path.substr(1)].getattr);
+            console.log('getNode:', getNode(path));
+            
+            var node = getNode(path);
+            
+            if (node) {
+                console.log('returning attrs', node.getattr);
+                return cb(null, node.getattr);
             } else {
-                console.log('here... B');
+                console.log('node is null looking for ', path, 'in', db);
                 cb(null, { yo: 'man' });
-                //cb(true, { code: 1, msg: 'ENOENT' });
             }
         }
     });
@@ -78,7 +144,9 @@ function Db() {
             var path = args[0];
             var flags = args[1];
             
-            if (files[path.substr(1)]) {
+            var node = getNode(path);
+            
+            if (node) {
                 return cb(null, 42);
             } else {
                 cb(true, { code: 1, msg: 'ENOENT' });
@@ -92,7 +160,9 @@ function Db() {
             var path = args[0];
             var fd = args[1];
             
-            if (files[path.substr(1)]) {
+            var node = getNode(path);
+            
+            if (node) {
                 return cb();
             } else {
                 return cb(true, { code: 1, msg: 'ENOENT' });
@@ -110,50 +180,54 @@ function Db() {
             
             if (len > 4096) { len = 4096; }
             
-            if (!files[path.substr(1)]) { return cb(true, { code: 2, msg: 'File not found.' }); }
+            var node = getNode(path);
             
-            if (pos >= files[path.substr(1)].data.length) { return cb(null, Buffer.alloc(0)); }
+            if (!node) { console.log('read: File not found.'); return cb(true, { code: 2, msg: 'File not found.' }); }
+            
+            if (pos >= node.data.length) { return cb(null, Buffer.alloc(0)); }
 
             
-            var str = files[path.substr(1)].data.slice(pos, pos + len);
+            var str = node.data.slice(pos, pos + len);
+            
+            console.log('read going to respond:', str);
+            
             cb(null, str);
         }
     });
 
     self.node.addEndpoint('write', {
         invoke: (args, peer, cb) => {
-            //console.log('write:', args);
+            console.log('write:', args);
             var path = args[0];
             var fd = args[1];
             var buffer = args[2];
             var length = buffer.length;
             var position = args[3];
 
-            if(!files[path.substr(1)]) { return cb(true, { code: 3, msg: 'ENOENT' }); }
+            var node = getNode(path);
             
-            if(position !== 0) {
-                if (position === files[path.substr(1)].data.length) {
-                    files[path.substr(1)].data = Buffer.concat([files[path.substr(1)].data, buffer]);
-                    files[path.substr(1)].getattr.size = files[path.substr(1)].data.length;
-                    return cb(null, length);
+            if (node) {
+                if(position === 0) {
+                    var data = Buffer.allocUnsafe(length);
+                    buffer.slice(0, length).copy(data, 0, 0, length);
+
+                    node.data = data;
+                    node.getattr.size = length;
+                    cb(null, length);
                 } else {
-                    console.log('checked data', position, files[path.substr(1)].data.length);
-                    return cb(null, length);
+                    if (position === node.data.length) {
+                        node.data = Buffer.concat([node.data, buffer]);
+                        node.getattr.size = node.data.length;
+                        return cb(null, length);
+                    } else {
+                        console.log('Failed writing position:', position, node.data.length);
+                        return cb(null, length);
+                    }
                 }
+                return;
             }
 
-            console.log('writing at 0', path.substr(1), fd, position, length, buffer);
-            
-            var data = Buffer.allocUnsafe(length);
-            buffer.slice(0, length).copy(data, 0, 0, length);
-            
-            files[path.substr(1)].data = data;
-            files[path.substr(1)].getattr.size = length;
-            
-            console.log('data at 0', path.substr(1), files[path.substr(1)].data, files[path.substr(1)].data.length);
-            
-            //console.log('files', files[path.substr(1)]);
-            
+            console.log('failed, but said we did it...!');
             cb(null, length); // we handled all the data
         }
     });
@@ -164,20 +238,26 @@ function Db() {
             var path = args[0];
             var mode = args[1];
             
-            console.log('create file:', path.substr(1), mode);
-            files[path.substr(1)] = {
-                data: new Buffer(0),
-                getattr: {
-                    mtime: new Date(),
-                    atime: new Date(),
-                    ctime: new Date(),
-                    nlink: 1,
-                    size: 0,
-                    mode: mode,
-                    uid: process.getuid ? process.getuid() : 0,
-                    gid: process.getgid ? process.getgid() : 0
-                }
-            };
+            var node = getNodeParent(path);
+            
+            if (node) {
+                console.log('create found parent', node);
+                var filename = path.split('/').pop();
+                node.files[filename] = {
+                    data: new Buffer(0),
+                    getattr: {
+                        mtime: new Date(),
+                        atime: new Date(),
+                        ctime: new Date(),
+                        nlink: 1,
+                        size: 0,
+                        mode: mode,
+                        uid: process.getuid ? process.getuid() : 0,
+                        gid: process.getgid ? process.getgid() : 0
+                    }
+                };
+                return cb();
+            }
             cb();
         }
     });
@@ -187,12 +267,16 @@ function Db() {
             var src = args[0];
             var dest = args[1];
 
+            var node = getNode(src);
+            var parent = getNodeParent(dest);
+
             console.log('rename', src, '=>', dest);
-            if(files[src.substr(1)]) {
-                files[dest.substr(1)] = files[src.substr(1)];
-                delete files[src.substr(1)];
+            /*if(node && parent) {
+                db[dest.substr(1)] = db[src.substr(1)];
+                delete db[src.substr(1)];
                 return cb();
-            }
+            }*/
+            return cb();
             
             cb(true, { code: 4, msg: 'ENOENT' });
         }
@@ -203,9 +287,64 @@ function Db() {
             console.log('unlink', args);
             var path = args[0];
 
-            if(!files[path.substr(1)]) { return cb(true, { code: 7, msg: 'ENOENT' }); }
+            var node = getNodeParent(path);
+            var filename = path.split('/').pop();
+            delete node.files[filename];
+
+            cb();
+        }
+    });
+
+    self.node.addEndpoint('mkdir', {
+        invoke: (args, peer, cb) => {
+            console.log('mkdir', args);
+            var path = args[0];
+            var mode = args[1];
+
+            var node = getNode(path);
+
+            if(node) { return cb(true, { code: 7, msg: 'ENOENT' }); }
             
-            delete files[path.substr(1)];
+            console.log('mode', mode, mode | S_IFDIR);
+            
+            node = getNodeParent(path);
+            
+            if(!node) { console.log('mkdir failed, no parent found'+ path); return cb(true, { code: 99 }); }
+            
+            var name = path.split('/').pop();
+            
+            console.log('going to set name', name, 'in', node);
+            
+            node.files[name] = {
+                data: Buffer.alloc(0),
+                files: {},
+                getattr: {
+                    mtime: new Date(),
+                    atime: new Date(),
+                    ctime: new Date(),
+                    nlink: 1,
+                    size: 0,
+                    mode: mode | S_IFDIR,
+                    uid: process.getuid ? process.getuid() : 0,
+                    gid: process.getgid ? process.getgid() : 0
+                }                
+            };
+            cb();
+        }
+    });
+
+    self.node.addEndpoint('rmdir', {
+        invoke: (args, peer, cb) => {
+            console.log('rmdir', args);
+            var path = args[0];
+
+            if(!db[path.substr(1)]) { return cb(true, { code: 7, msg: 'ENOENT' }); }
+            
+            if ( !(db[path.substr(1)].getattr.mode & S_IFDIR)) {
+                return cb(true, { code: 8, msg: 'ENODIR' });
+            }
+            
+            delete db[path.substr(1)];
             cb();
         }
     });
@@ -217,11 +356,18 @@ function Db() {
             var atime = args[1];
             var mtime = args[2];
 
-            if(!files[path.substr(1)]) { return cb(true, { code: 7, msg: 'ENOENT' }); }
+            if(!db[path.substr(1)]) { return cb(true, { code: 7, msg: 'ENOENT' }); }
             
-            files[path.substr(1)].getattr.atime = atime;
-            files[path.substr(1)].getattr.mtime = mtime;
+            db[path.substr(1)].getattr.atime = atime;
+            db[path.substr(1)].getattr.mtime = mtime;
             cb();
+        }
+    });
+
+    self.node.addEndpoint('files', {
+        invoke: (args, peer, cb) => {
+            console.log('files', args);
+            cb(null, db);
         }
     });
 

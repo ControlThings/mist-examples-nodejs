@@ -284,6 +284,46 @@ function File() {
             delete files[path.substr(1)];
             cb(0);
         },
+        mkdir: function(path, mode, cb) {
+            var peer = self.getPeer();
+            
+            if(peer) {
+                self.node.request(peer, 'control.invoke', ['mkdir', [path, mode]], (err, data) => {
+                    if(err) { return cb(fuse.ENOENT); }
+                    
+                    cb(0);
+                });
+                return;
+            }            
+        },
+        rmdir: function(path, cb) {
+            var peer = self.getPeer();
+            
+            if(peer) {
+                self.node.request(peer, 'control.invoke', ['rmdir', [path]], (err, data) => {
+                    if(err) { return cb(fuse.ENOENT); }
+                    
+                    cb(0);
+                });
+                return;
+            }            
+        },
+        statfs: function(path, cb) {
+            console.log('statfs');
+            cb(0, {
+                bsize: 1000000,
+                frsize: 1000000,
+                blocks: 1000000,
+                bfree: 1000000,
+                bavail: 1000000,
+                files: 1000000,
+                ffree: 1000000,
+                favail: 1000000,
+                fsid: 1000000,
+                flag: 1000000,
+                namemax: 1000000
+            });
+        },
         utimens: function(path, atime, mtime, cb) {
             var peer = self.getPeer();
             
