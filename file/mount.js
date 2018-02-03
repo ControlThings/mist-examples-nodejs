@@ -19,6 +19,8 @@ function File() {
     var mountPath = process.platform !== 'win32' ? '/media/mist' : 'M:\\'
 
     var readme = new Buffer('There a re no peers available.\n');
+    var xdfVolumeInfo = new Buffer('[Volume Info]\nIconFile=.network-drive-icon.png');
+    var icon = require('fs').readFileSync(__dirname+'/network-drive-icon.png');
 
     var files = {
         /*
@@ -36,10 +38,36 @@ function File() {
             }
         }
         */
+        '.xdg-volume-info': {
+            data: xdfVolumeInfo,
+            getattr: {
+                mtime: new Date(),
+                atime: new Date(),
+                ctime: new Date(),
+                nlink: 1,
+                size: xdfVolumeInfo.length,
+                mode: 33188,
+                uid: process.getuid ? process.getuid() : 0,
+                gid: process.getgid ? process.getgid() : 0
+            }
+        },
+        '.network-drive-icon.png': {
+            data: icon,
+            getattr: {
+                mtime: new Date(),
+                atime: new Date(),
+                ctime: new Date(),
+                nlink: 1,
+                size: icon.length,
+                mode: 33188,
+                uid: process.getuid ? process.getuid() : 0,
+                gid: process.getgid ? process.getgid() : 0
+            }
+        }
     };
 
     function mkdir(path) {
-        console.log('making local directory');
+        //console.log('making local directory');
         files[path] = {
             data: Buffer.alloc(0),
             files: {},
@@ -57,7 +85,7 @@ function File() {
     }
 
     self.node.on('online', (peer) => {
-        console.log('online');
+        //console.log('online');
         self.node.request(peer, 'control.read', ['mist.class'], (err, type) => {
             if (type === 'fi.controlthings.db') {
                 self.node.wish.request('identity.get', [peer.luid], (err, data1) => {
@@ -65,7 +93,7 @@ function File() {
                         //console.log('peer:alias', data1.alias, data2.alias);
                         self.node.request(peer, 'control.read', ['mist.name'], (err, name) => {
                             //console.log('peer:alias', data1.alias, data2.alias, data);
-                            console.log('peer:alias', data1.alias, data2.alias, name, type);
+                            //console.log('peer:alias', data1.alias, data2.alias, name, type);
                             
                             peer.l = data1.alias;
                             peer.r = data2.alias;
@@ -105,11 +133,11 @@ function File() {
     
     fuse.mount(mountPath, {
         init: (cb) => {
-            console.log('init fs');
+            //console.log('init fs');
             cb(0);
         },
         access: (path, mode, cb) => {
-            console.log('Accessing', path, mode);
+            //console.log('Accessing', path, mode);
             cb(0);
         },
         readdir: function (path, cb) {
@@ -137,11 +165,11 @@ function File() {
             });
         },
         chown: (path, uid, gid, cb) => {
-            console.log('chown', path, uid, gid);
+            //console.log('chown', path, uid, gid);
             cb(0);
         },
         chmod: (path, mode, cb) => {
-            console.log('chmod', path, mode);
+            //console.log('chmod', path, mode);
             cb(0);
         },
         getattr: function (path, cb) {
@@ -161,7 +189,7 @@ function File() {
                 }
                 
                 //console.log('This is a local dir', path);
-                if (!files[path.slice(1)]) { console.log('file not here:', path); return cb(fuse.ENOENT); }
+                if (!files[path.slice(1)]) { /* console.log('file not here:', path); */ return cb(fuse.ENOENT); }
                 return cb(0, files[path.slice(1)].getattr);
             }
             
@@ -170,26 +198,33 @@ function File() {
             if (!redirect) { return cb(fuse.ENOENT); }
             
             self.node.request(redirect.peer, 'control.invoke', ['getattr', [redirect.path]], (err, data) => {
-                //console.log('fuse:getattrCb', err, data);
-                if(err) { console.log('error remotely reading ', redirect.path, 'original path:', path); return cb(fuse.ENOENT); }
+                if(err) { return cb(fuse.ENOENT); }
                 cb(0, data);
             });
             return;
         },
         open: function (path, flags, cb) {
-            console.log('open(%s, %d)', path, flags);
+            //console.log('open(%s, %d)', path, flags);
             cb(0, 42); // 42 is an fd
         },
         release: function(path, fd, cb) {
-            console.log('release', path, fd);
+            //console.log('release', path, fd);
             cb(0);
         },
         read: function (path, fd, buf, len, pos, cb) {
             var redirect = getRedirect(path);
 
-            if (!redirect) { return cb(fuse.ENOENT); }
+            if (!redirect) {
+                // might be a local file
+                if(files[path.slice(1)]) {
+                    var res = files[path.slice(1)].data.slice(pos, pos + len);
+                    res.copy(buf);
+                    return cb(res.length);
+                }
+                return cb(fuse.ENOENT);
+            }
             
-            console.log('read redirect', path, "=>", redirect.path);
+            //console.log('read redirect', path, "=>", redirect.path);
             
             var tmp = Buffer.allocUnsafe(len);
             var cursor = 0;
@@ -200,30 +235,30 @@ function File() {
 
                     if(data.length === 0) {
                         tmp.copy(buf, 0, 0, cursor);
-                        console.log('EOF', path, cursor,'bytes');
+                        //console.log('EOF', path, cursor,'bytes');
                         return cb(cursor);
                     }
 
-                    console.log('received data', err, data);
+                    //console.log('received data', err, data);
 
                     data.copy(tmp, cursor);
                     cursor += data.length;
 
-                    console.log('received data:', data.length, 'cursor:', cursor);
+                    //console.log('received data:', data.length, 'cursor:', cursor);
 
 
                     if (cursor < len) {
-                        console.log('need more', cursor, '/', len, 'read from pos+data.length:', (pos+data.length));
+                        //console.log('need more', cursor, '/', len, 'read from pos+data.length:', (pos+data.length));
                         setTimeout(() => { read(peer, path, fd, len, pos+data.length); });
                         return;
                     }
 
-                    console.log('all we need %i / %i', cursor, len);
+                    //console.log('all we need %i / %i', cursor, len);
 
                     // got all we need
                     tmp.copy(buf);
 
-                    console.log('file:readCb', err, data, data.length, pos, len);
+                    //console.log('file:readCb', err, data, data.length, pos, len);
 
                     cb(tmp.length);
                 });
@@ -237,7 +272,7 @@ function File() {
 
             if (!redirect) { return cb(fuse.ENOENT); }
             
-            console.log('write redirect', path, "=>", redirect.path);
+            //console.log('write redirect', path, "=>", redirect.path);
             
             self.node.request(redirect.peer, 'control.invoke', ['write', [redirect.path, fd, buffer.slice(0, length), position]], (err, data) => {
                 //console.log('fuse:writeCb', err, data);
@@ -306,7 +341,7 @@ function File() {
             return;
         },
         statfs: function(path, cb) {
-            console.log('statfs');
+            //console.log('statfs');
             cb(0, {
                 bsize: 1000000,
                 frsize: 1000000,
@@ -327,7 +362,7 @@ function File() {
             if (!redirect) { return cb(fuse.ENOENT); }
             
             self.node.request(redirect.peer, 'control.invoke', ['utimens', [redirect.path, atime, mtime]], (err, data) => {
-                console.log('utimensCb', err, data);
+                //console.log('utimensCb', err, data);
                 if(err) { return cb(fuse.ENOENT); }
 
                 cb(0);
