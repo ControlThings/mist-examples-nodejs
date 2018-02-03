@@ -4,14 +4,15 @@ var cls = 'fi.controlthings.db';
 
 function Db() {
     var self = this;
-    this.node = new MistNode('FileDb');
+    this.name = process.env.NAME || 'FileDb';
+    this.node = new MistNode(this.name);
     this.peers = {};
     this.peerCount = 0;
 
     // Directory flag 0x4000
     var S_IFDIR = 16384;
 
-    self.node.addEndpoint('mist.name', { type: 'string', read: (args, peer, cb) => { cb(null, 'FileDb'); } });
+    self.node.addEndpoint('mist.name', { type: 'string', read: (args, peer, cb) => { cb(null, self.name); } });
     self.node.addEndpoint('mist.class', { type: 'string', read: (args, peer, cb) => { cb(null, cls); } });
 
     var db = {
@@ -133,7 +134,7 @@ function Db() {
                 return cb(null, node.getattr);
             } else {
                 console.log('node is null looking for ', path, 'in', db);
-                cb(null, { yo: 'man' });
+                cb({ code: 6, msg: 'Not found: '+path });
             }
         }
     });
@@ -149,7 +150,7 @@ function Db() {
             if (node) {
                 return cb(null, 42);
             } else {
-                cb(true, { code: 1, msg: 'ENOENT' });
+                cb({ code: 1, msg: 'ENOENT' });
             }
         }
     });
@@ -165,7 +166,7 @@ function Db() {
             if (node) {
                 return cb();
             } else {
-                return cb(true, { code: 1, msg: 'ENOENT' });
+                return cb({ code: 1, msg: 'ENOENT' });
             }
         }
     });
@@ -182,7 +183,7 @@ function Db() {
             
             var node = getNode(path);
             
-            if (!node) { console.log('read: File not found.'); return cb(true, { code: 2, msg: 'File not found.' }); }
+            if (!node) { console.log('read: File not found.'); return cb({ code: 2, msg: 'File not found.' }); }
             
             if (pos >= node.data.length) { return cb(null, Buffer.alloc(0)); }
 
@@ -268,17 +269,22 @@ function Db() {
             var dest = args[1];
 
             var node = getNode(src);
+            var srcParent = getNodeParent(src);
             var parent = getNodeParent(dest);
+            var src_filename = src.split('/').pop();
+            var dest_filename = dest.split('/').pop();
 
             console.log('rename', src, '=>', dest);
-            /*if(node && parent) {
-                db[dest.substr(1)] = db[src.substr(1)];
-                delete db[src.substr(1)];
+            if(node && parent) {
+                parent.files[dest_filename] = node;
+                delete srcParent.files[src_filename];
+                console.log('Going out here', db, 'asdasdasdasdasdasd\n\n', srcParent, src_filename);
                 return cb();
-            }*/
-            return cb();
+            }
             
-            cb(true, { code: 4, msg: 'ENOENT' });
+            console.log('erroring out here');
+            
+            cb({ code: 4, msg: 'ENOENT' });
         }
     });
 
@@ -303,13 +309,13 @@ function Db() {
 
             var node = getNode(path);
 
-            if(node) { return cb(true, { code: 7, msg: 'ENOENT' }); }
+            if(node) { return cb({ code: 7, msg: 'ENOENT' }); }
             
             console.log('mode', mode, mode | S_IFDIR);
             
             node = getNodeParent(path);
             
-            if(!node) { console.log('mkdir failed, no parent found'+ path); return cb(true, { code: 99 }); }
+            if(!node) { console.log('mkdir failed, no parent found'+ path); return cb({ code: 99 }); }
             
             var name = path.split('/').pop();
             
@@ -338,13 +344,18 @@ function Db() {
             console.log('rmdir', args);
             var path = args[0];
 
-            if(!db[path.substr(1)]) { return cb(true, { code: 7, msg: 'ENOENT' }); }
+            var node = getNode(path);
+
+            if(!node) { console.log('yoyoyoyo', path); return cb({ code: 7, msg: 'ENOENT' }); }
             
-            if ( !(db[path.substr(1)].getattr.mode & S_IFDIR)) {
-                return cb(true, { code: 8, msg: 'ENODIR' });
+            if ( !(node.getattr.mode & S_IFDIR)) {
+                console.log('ended up here.', node.getattr, node.getattr.mode & S_IFDIR);
+                return cb({ code: 8, msg: 'ENODIR' });
             }
             
-            delete db[path.substr(1)];
+            var parent = getNodeParent(path);
+            delete parent.files[path.split('/').pop()];
+            
             cb();
         }
     });
@@ -356,10 +367,12 @@ function Db() {
             var atime = args[1];
             var mtime = args[2];
 
-            if(!db[path.substr(1)]) { return cb(true, { code: 7, msg: 'ENOENT' }); }
+            var node = getNode(path);
+
+            if(!node) { return cb({ code: 7, msg: 'ENOENT' }); }
             
-            db[path.substr(1)].getattr.atime = atime;
-            db[path.substr(1)].getattr.mtime = mtime;
+            node.getattr.atime = atime;
+            node.getattr.mtime = mtime;
             cb();
         }
     });
