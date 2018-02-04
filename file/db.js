@@ -1,5 +1,7 @@
 var MistNode = require('mist-api').MistNode;
-
+var bson = require('bson-buffer');
+var BSON = new bson();
+var fs = require('fs');
 
 function Db() {
     var self = this;
@@ -29,6 +31,21 @@ function Db() {
         },
         files: {}
     };
+    
+    try {
+        var data = fs.readFileSync('./db.bson');
+        var db = BSON.deserialize(data);
+    } catch(e) {
+        console.log('Failed reading db, initing empty file system.');
+    }
+
+    process.on('SIGINT', function () {
+        var data = BSON.serialize(db);
+        console.log('Writing filesystem data to file. Size: '+(data.length/1024/1024)+' MiB');
+        fs.writeFileSync('./db.bson', data);
+        console.log('Done writing.');
+        process.exit(0);
+    });
 
     function getNodeParent(path) {
         if (path === '/') { return null; }

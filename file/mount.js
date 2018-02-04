@@ -1,5 +1,5 @@
 var MistNode = require('mist-api').MistNode;
-var fuse = require('fuse-bindings')
+var fuse = require('fuse-bindings');
 
 var cls = 'fi.controlthings.file';
 
