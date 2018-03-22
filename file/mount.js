@@ -131,14 +131,18 @@ function File() {
         return null;
     }
     
-    fuse.mount(mountPath, {
+    var handlers = {
         init: (cb) => {
             //console.log('init fs');
             cb(0);
         },
         access: (path, mode, cb) => {
-            //console.log('Accessing', path, mode);
+            console.log('Accessing', path, mode);
             cb(0);
+        },
+        opendir: (path, flags, cb) => {
+            console.log('opendir', path, flags);
+            cb(0, 44);
         },
         readdir: function (path, cb) {
             //console.log('readdir(%s)', path);
@@ -203,12 +207,20 @@ function File() {
             });
             return;
         },
+        fgetattr: (path, fd, cb) => {
+            console.log('fgetattr');
+            handlers.getattr(path, cb);
+        },
         open: function (path, flags, cb) {
             //console.log('open(%s, %d)', path, flags);
             cb(0, 42); // 42 is an fd
         },
         release: function(path, fd, cb) {
             //console.log('release', path, fd);
+            cb(0);
+        },
+        releasedir: (path, fd, cb) => {
+            console.log('releasedir', path, fd);
             cb(0);
         },
         read: function (path, fd, buf, len, pos, cb) {
@@ -367,8 +379,27 @@ function File() {
 
                 cb(0);
             });
+        },
+        setxattr: (path, name, buffer, length, offset, flags, cb) => {
+            console.log('setxattr', path, length);
+            cb(0);
+        },
+        getxattr: (path, name, buffer, length, offset, cb) => {
+            console.log('getxattr', path, name, length);
+            if(name === 'com.apple.FinderInfo') { return cb(0) }
+            cb(0);
+        },
+        listxattr: (path, buffer, length, cb) => {
+            console.log('listxattr', path, length);
+            cb(0, ['com.apple.FinderInfo']);
+        },
+        removexattr: (path, name, cb) => {
+            console.log('removexattr', path, length);
+            cb(0);
         }
-    }, function (err) {
+    };
+    
+    fuse.mount(mountPath, handlers, function (err) {
         if (err) { throw err; }
         console.log('filesystem mounted on ' + mountPath);
     });
