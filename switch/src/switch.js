@@ -19,9 +19,6 @@ function Switch() {
         type: 'bool',
         read: function(args, peer, cb) {
             cb(null, relay);
-            
-            if (!peer) { /* local read */ return; }
-            node.request(peer, 'control.invoke', ['debug', 'You read my values!'], console.log);
         },
         write: function(value, peer, cb) {
             // write the internal state variable for `number` endpoint
@@ -30,6 +27,8 @@ function Switch() {
             cb();
             // signal `number` value changed
             node.changed('relay');
+            
+            console.log('relay set to:', relay);
         }
     });
 }
