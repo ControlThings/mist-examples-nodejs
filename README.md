@@ -6,7 +6,7 @@ If you are running on Linux x64 or OSX x64 everything should work out of the box
 
 Download and install node.js v6.x: https://nodejs.org/dist/latest-v6.x/. You may use Node Version Manager `nvm` (https://github.com/creationix/nvm).
 
-You will need to have an appropriate wish-core (the peer-to-peer identity based communication layer mist is based on). The source is available at: https://github.com/WishCore/wish-c99.
+You will need to have an appropriate wish-core (the peer-to-peer identity based communication layer mist is based on). The source is available at: https://github.com/ControlThings/wish-c99.
 
 Install command line tools for Mist and Wish:
 
