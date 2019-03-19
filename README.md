@@ -135,7 +135,7 @@ Oh! That makes me happy!
 
 Once the friend connection has been made using the local broadcast network, you can freely move yourself or Marielle elsewhere. 
 
-As long as both entities have working internet connection, they will be able to communicate with each other securely using built-in relay connectivity. 
+As long as both entities have working internet connections, they will be able to communicate with each other securely using built-in relay connectivity. 
 
 ## Further Reading
 
@@ -143,7 +143,7 @@ Check out the READMEs in the subfolders for more information about the actual co
 
 ## The CLIs
 
-If you installed the optional command line tools, you can interact with the Wish and Mist APIs without using Node.js. 
+If you installed the optional command line tools, you can interact with the Wish and Mist APIs without using Node.js. *Note* that you have to set the core port number using an environment variable.
 
 Show the internal help and list all known identities:
 
@@ -156,7 +156,7 @@ wish> identity.list()
 ...
 ```
 
-Show the internal help and list all peers (friends): 
+Show the internal help, list all peers (friends) and smile to Marielle, who happens to be peers[0]: 
 
 ```sh
 $ export CORE=9094
@@ -164,5 +164,12 @@ $ mist-cli
 mist> help()
 ...
 mist> list()
-...
+Known peers:
+  peers[0]: Marielle (Marielle) 
+mist> mist.control.invoke(peers[0], "smile")
+reqId: 7
+mist> 
+':)'
+mist> 
+
 ```
