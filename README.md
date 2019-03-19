@@ -1,62 +1,136 @@
-# Example code for mist-api on node.js
+# Trying out Mist and Wish on node.js
 
 ## Prerequisites
 
-If you are running on Linux x64 or OSX x64 everything should work out of the box according to the instructions below. Windows is not supported yet.
+When running Linux x64 or macOS x64 everything should work swimmingly if you follow the instructions below. Windows isn't supported (yet).
 
-Download and install node.js v6.x: https://nodejs.org/dist/latest-v6.x/. You may use Node Version Manager `nvm` (https://github.com/creationix/nvm).
+Install:
 
-You will need to have an appropriate wish-core (the peer-to-peer identity based communication layer mist is based on). The source is available at: https://github.com/ControlThings/wish-c99.
+1. [Node.js v6](https://nodejs.org/dist/latest-v6.x/) 
 
-Install command line tools for Mist and Wish:
+2. *Wish*, the p2p communication layer Mist is using. Download the [Wish binaries](https://www.controlthings.fi/dev/) for Linux/macOS, or build it from [the Wish source code](https://github.com/ControlThings/wish-c99). Copy the binary into the examples root folder.
+
+3. Optionally, install Mist and Wish command line tools for further testing and tweaking:
 
 ```sh
 npm install -g mist-cli@latest wish-cli@latest
 ```
 
+## Me and Marielle
+In this example we'll create two entities (or _things_) and do our best so that they will communicate with each other. 
 
-Create an identity.
+1. **Marielle** (```marielle/```) is a person looking for friends and reacting whenever someone is smiling or frowning at her. 
+2. **Me** (```me/```) is _just me_, a rough app for my own interactions with Marielle. 
 
-```sh
-wish-cli
-identity.create('Demo Identity')
-```
+So here we go! To lessen the confusion, it might be smart to use two seperate terminal windows (one for each entity) and further to create two tabs within each terminal (one for the Wish server, one for running the Node.JS app).
 
-In the examples root directory run:
+But, first, in the examples root folder, run: 
 
 ```sh
 npm install
 ```
 
-## Running examples
 
-### Switch
+### Marielle Terminal - Wish Tab
 
-A simplistic switch implementation.
-
-```sh
-node switch/run.js
-```
-
-### Parking
-
-A parking service. 
+Assuming you have the Wish binary installed in the root folder and named ```wish-core```:
 
 ```sh
-node parking/run.js
+./wish-core -a 9094 -p 37200
 ```
 
-## Accessing the examples from CLI
+- *-a* specifies which port Wish will use to listen for app communication. Marielle will talk to Wish over this port. 
+
+- *-p* is the port used for global communication with other Wish cores.  
+
+### Marielle Terminal - Application Tab
 
 ```sh
-# run the command line tool
-mist-cli
-# shows help
-help()
-# shows list of peers available
-list()
-# show model
-mist.control.model(peers[x])
-# write to relay endpoint of switch
-mist.control.write(peers[x], 'relay', true)
+cd marielle
+node marielle.js
 ```
+
+Marielle ensures she has an identity (private and public key) and boots up. If everything is ok:
+
+```
+Hello, world. I am Marielle.
+```
+
+### Me Terminal - Wish Tab
+
+```sh
+./wish-core -a 9095 -p 37300
+```
+_Note_ that the ports are different. When we are running to cores on the same computer, they have to run on different ports.
+
+### Me Terminal - Application Tab
+
+```sh
+cd me
+node me.js
+```
+
+Running _me_ without arguments will show the usage instructions: 
+
+```
+usage: node me.js [who | hello | smile | frown]
+
+who	    List who is present
+hello	Become friends with everyone
+smile	Smile broadly!
+frown	Frown angrily
+```
+
+- *who* lists all the entities that are present on the local broadcast network. If both entities are running, you should se yourself and Marielle. 
+
+- *hello* sends friend requests to all other entities on the local network. Marielle is listening for these and will automatically become friends with anyone interested (check for this happening in the Marielle application tab). 
+
+- *smile* sends a smile to all your friends. Remember to say *hello* first, otherwise you won't have any friends.
+
+- *frown* sends an angry smile to all our friends. 
+
+### Example Output
+
+Show a list of anyone present.
+
+```sh
+$ node me.js who
+I'm here!
+Marielle is here.
+```
+
+Say hello (make a friend request).
+
+```sh
+$ node me.js hello
+Saying hello to Marielle
+
+On Marielle's terminal (with Marielle running):
+I got a cool friend!
+```
+
+Try who again.
+
+```
+$ node me.js who
+I'm here!
+Your friend Marielle is here.
+```
+
+Smile to Marielle.
+
+```sh
+$ node me.js smile
+:)
+
+On Marielle's terminal:
+Oh! That makes me happy!
+```
+
+(The smiley above in the _me_ terminal is Marielle's return value.)
+
+## Long Distance Relationship
+
+Once the friend connection has been made using the local broadcast network, you can freely move yourself or Marielle elsewhere. As long as both entities have working internet connection, they will be able to communicate with each other securely using built-in relay connectivity. 
+
+Check out the READMEs in the subfolders for more information about the actual code.
