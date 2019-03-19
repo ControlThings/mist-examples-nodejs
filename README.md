@@ -6,7 +6,7 @@ When running Linux x64 or macOS x64 everything should work swimmingly if you fol
 
 Install:
 
-1. [Node.js v6](https://nodejs.org/dist/latest-v6.x/) 
+1. [Node.js v6](https://nodejs.org/dist/latest-v6.x/). Note that v6.x is _required_. You can use [nvm](https://github.com/creationix/nvm) to run multiple Node versions on the same computer.  
 
 2. *Wish*, the p2p communication layer Mist is using. Download the [Wish binaries](https://www.controlthings.fi/dev/) for Linux/macOS, or build it from [the Wish source code](https://github.com/ControlThings/wish-c99). Copy the `wish-core` binary into the examples root folder.
 
