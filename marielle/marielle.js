@@ -32,6 +32,9 @@ function Marielle() {
 
   api.onReady().then(() => {
     api.ensureIdentity(name).then(() => {
+	
+      console.log("Hello, world! I am Marielle.");
+
       /*
    * Start listener for automatically accepting friend requests.
    */
