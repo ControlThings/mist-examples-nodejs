@@ -6,7 +6,7 @@ module.exports = class Api {
   }
 
   node() {
-   return this.api.node;
+    return this.api.node;
   }
 
   onReady() {
@@ -88,9 +88,9 @@ module.exports = class Api {
   onFriendRequest(cb) {
     this.api.request("signals", [], (err, data) => {
       if (!err) {
-       if (data == "friendRequest") {
-         cb();
-       }
+        if (data == "friendRequest") {
+          cb();
+        }
       }
     });
   }
