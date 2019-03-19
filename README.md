@@ -13,7 +13,7 @@ Install:
 3. Install Mist and Wish command line tools for further testing and tweaking (optional):
 
 ```sh
-npm install -g mist-cli@latest wish-cli@latest
+$ npm install -g mist-cli@latest wish-cli@latest
 ```
 
 ## Me and Marielle
@@ -29,7 +29,7 @@ To lessen the confusion, it might be smart to use two seperate terminal windows 
 But, first, in the examples root folder, run: 
 
 ```sh
-npm install
+$ npm install
 ```
 
 
@@ -38,7 +38,7 @@ npm install
 Assuming you have the Wish binary installed in the root folder and named ```wish-core```:
 
 ```sh
-./wish-core -a 9094 -p 37200
+$ ./wish-core -a 9094 -p 37200
 ```
 
 - *-a* specifies which port Wish will use to listen for app communication. Marielle will talk to Wish over this port. 
@@ -48,8 +48,8 @@ Assuming you have the Wish binary installed in the root folder and named ```wish
 ### Marielle Terminal - Application Tab
 
 ```sh
-cd marielle
-node marielle.js
+$ cd marielle
+$ node marielle.js
 ```
 
 Marielle ensures she has an identity (private and public key) and boots up. If everything is ok, she says:
@@ -61,15 +61,15 @@ Hello, world. I am Marielle.
 ### Me Terminal - Wish Tab
 
 ```sh
-./wish-core -a 9095 -p 37300
+$ ./wish-core -a 9095 -p 37300
 ```
 _Note_ that the ports are different. When we are running two cores on the same computer, they have to run on different ports.
 
 ### Me Terminal - Application Tab
 
 ```sh
-cd me
-node me.js
+$ cd me
+$ node me.js
 ```
 
 Running _me_ without arguments will show the usage instructions: 
@@ -78,9 +78,9 @@ Running _me_ without arguments will show the usage instructions:
 usage: node me.js [who | hello | smile | frown]
 
 who	    List who is present
-hello	Become friends with everyone
-smile	Smile broadly!
-frown	Frown angrily
+hello   Become friends with everyone
+smile   Smile broadly!
+frown   Frown angrily
 ```
 
 - *who* lists all the entities that are present on the local broadcast network. If both entities are running, you should se yourself and Marielle. 
@@ -140,3 +140,29 @@ As long as both entities have working internet connection, they will be able to 
 ## Further Reading
 
 Check out the READMEs in the subfolders for more information about the actual code.
+
+## The CLIs
+
+If you installed the optional command line tools, you can interact with the Wish and Mist APIs without using Node.js. 
+
+Show the internal help and list all known identities:
+
+```sh
+$ export CORE=9094
+$ wish-cli
+wish> help()
+...
+wish> identity.list()
+...
+```
+
+Show the internal help and list all peers (friends): 
+
+```sh
+$ export CORE=9094
+$ mist-cli
+mist> help()
+...
+mist> list()
+...
+```
