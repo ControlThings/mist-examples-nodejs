@@ -39,8 +39,12 @@ Assuming you have the Wish binary installed in the root folder and named ```wish
 
 ```sh
 $ chmod a+x wish-core
+$ cd marielle
+$ cp ../wish-core .
 $ ./wish-core -a 9095 -p 37300
 ```
+
+**NOTE**: The cores create their own working files/databases, so we're copying each `wish-core` into its entity's folder to prevent them from overwriting each other's files.
 
 - *-a* specifies which port Wish will use to listen for app communication. Marielle will talk to Wish over this port. 
 
@@ -50,7 +54,7 @@ $ ./wish-core -a 9095 -p 37300
 
 ```sh
 $ cd marielle
-$ node marielle.js
+$ node marielle.js
 ```
 
 Marielle ensures she has an identity (private and public key) and boots up. If everything is ok, she says:
@@ -62,7 +66,9 @@ Hello, world. I am Marielle.
 ### Me Terminal - Wish Tab
 
 ```sh
-$ ./wish-core -a 9094 -p 37200
+$ cd me
+$ cp ../wish-core .
+$ ./wish-core -a 9094 -p 37200
 ```
 _Note_ that the ports are different. When we are running two cores on the same computer, they have to run on different ports.
 
